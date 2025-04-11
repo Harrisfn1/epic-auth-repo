@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Epic Games OAuth Authentication</title>
+</head>
+<body>
+    <h1>Epic Games OAuth Authentication</h1>
+    <button id="loginButton">Login with Epic Games</button>
+ 
+    <h2>User Info</h2>
+    <div id="userInfo">
+        <p><strong>User ID:</strong> <span id="userId">N/A</span></p>
+        <p><strong>Display Name:</strong> <span id="displayName">N/A</span></p>
+        <p><strong>Email:</strong> <span id="email">N/A</span></p>
+        <p><strong>Country:</strong> <span id="country">N/A</span></p>
+    </div>
+ 
+    <script>
+        // Replace these with your actual credentials
+        const clientId = "xyza7891IiVAUP0G28eVDWtVxWGOq70Z"; // Epic Games client ID
+        const clientSecret = "Ujwsttj886/UcKa+E1eau4hbnWZpeWSs6RI4DUogb/8"; // Epic Games client secret
+        const redirectUri = "http://localhost:8000/callback"; // Redirect URI set in your Epic Developer Portal
+        const scope = "basic:account"; // Scope for accessing user information
+ 
+        // The authorization URL for Epic Games OAuth
+        const authUrl = `https://accounts.epicgames.com/oauth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}`;
+ 
+        // Handle login button click
+        document.getElementById("loginButton").onclick = function() {
+            window.location.href = authUrl;
+        };
+ 
+        // Retrieve the authorization code from the URL
+        function getAuthorizationCode() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('code');
+        }
+ 
+        // Function to exchange authorization code for an access token
+        function exchangeAuthCodeForToken(code) {
+            const tokenUrl = "https://accounts.epicgames.com/oauth/token";
+            const formData = new URLSearchParams();
+            formData.append('grant_type', 'authorization_code');
+            formData.append('code', code);
+            formData.append('client_id', clientId);
+            formData.append('client_secret', clientSecret);
+            formData.append('redirect_uri', redirectUri);
+ 
+            return fetch(tokenUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: formData
+            }).then(response => response.json());
+        }
+ 
+        // Fetch user info using the access token
+        function fetchUserData(accessToken) {
+            const userUrl = "https://api.epicgames.com/v1/me"; // Endpoint to fetch user details
+ 
+            return fetch(userUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            }).then(response => response.json());
+        }
+ 
+        // Handle redirect after authentication
+        function handleRedirect() {
+            const code = getAuthorizationCode();
+ 
+            if (code) {
+                exchangeAuthCodeForToken(code).then(data => {
+                    const accessToken = data.access_token;
+ 
+                    // Fetch user data
+                    fetchUserData(accessToken).then(userData => {
+                        // Display user data on the page
+                        document.getElementById('userId').textContent = userData.id || "N/A";
+                        document.getElementById('displayName').textContent = userData.displayName || "N/A";
+                        document.getElementById('email').textContent = userData.email || "N/A";
+                        document.getElementById('country').textContent = userData.country || "N/A";
+                    }).catch(error => {
+                        console.error('Error fetching user data:', error);
+                    });
+                }).catch(error => {
+                    console.error('Error exchanging authorization code for token:', error);
+                });
+            }
+        }
+ 
+        // Check if we have the authorization code in the URL and handle it
+        if (window.location.search.includes('code=')) {
+            handleRedirect();
+        }
+    </script>
+</body>
+</html>
